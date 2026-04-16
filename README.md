@@ -59,4 +59,4 @@ Run `python youOnlyParkOnce.py prepare` to parse the dataset into a YOLO11-compa
 
 Run `python youOnlyParkOnce.py train --model yolo11n.pt --epochs <num_epochs>` to train the YOLO model on the dataset. You can pass `--device auto` to use the GPU if available, `--device cpu` to use the CPU, or `--device <number>` to specify a specific device.
 
-Run `python youOnlyParkOnce.py predict --weights runs/yopo/train/weights/best.pt --source data/test` to predict using the trained weights.
+Run `python youOnlyParkOnce.py predict --weights runs/detect/runs/yopo/train/weights/best.pt --source data/test` to predict using the trained weights.

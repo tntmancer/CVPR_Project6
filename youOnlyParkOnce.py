@@ -20,6 +20,7 @@ import shutil
 from pathlib import Path
 from typing import Dict, List, Tuple
 
+import matplotlib.pyplot as plt
 import torch
 from ultralytics import YOLO
 
@@ -231,6 +232,78 @@ def predict(
 	print(f"Predictions saved under: {project_dir / 'predict'}")
 
 
+def _metric_value(metrics: object, names: Tuple[str, ...], default: float = 0.0) -> float:
+	for name in names:
+		value = getattr(metrics, name, None)
+		if value is not None:
+			try:
+				return float(value)
+			except (TypeError, ValueError):
+				continue
+	return default
+
+
+def _save_metric_summary_plot(metrics: object, save_dir: Path) -> Path:
+	box_metrics = getattr(metrics, "box", metrics)
+	values = [
+		_metric_value(box_metrics, ("mp", "precision", "p")),
+		_metric_value(box_metrics, ("mr", "recall", "r")),
+		_metric_value(box_metrics, ("map50", "map_50", "mAP50")),
+		_metric_value(box_metrics, ("map", "map5095", "mAP50-95")),
+	]
+	labels = ["Precision", "Recall", "mAP@50", "mAP@50:95"]
+
+	fig, ax = plt.subplots(figsize=(8, 4.5))
+	bars = ax.bar(labels, values, color=["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728"])
+	ax.set_ylim(0.0, 1.0)
+	ax.set_ylabel("Score")
+	ax.set_title("Test Set Detection Metrics")
+	ax.grid(axis="y", alpha=0.25)
+	for bar, value in zip(bars, values, strict=False):
+		ax.text(bar.get_x() + bar.get_width() / 2.0, value + 0.02, f"{value:.3f}", ha="center", va="bottom")
+	fig.tight_layout()
+
+	plot_path = save_dir / "metrics_summary.png"
+	fig.savefig(plot_path, dpi=200)
+	plt.close(fig)
+	return plot_path
+
+
+def evaluate_model(
+	weights: Path,
+	dataset_yaml: Path,
+	device: str,
+	project_dir: Path,
+) -> None:
+	model = YOLO(str(weights))
+	metrics = model.val(
+		data=str(dataset_yaml),
+		split="test",
+		device=device,
+		plots=True,
+		save_json=True,
+		project=str(project_dir),
+		name="test_eval",
+		exist_ok=True,
+	)
+
+	save_dir = Path(metrics.save_dir)
+	plot_path = _save_metric_summary_plot(metrics, save_dir)
+	box_metrics = getattr(metrics, "box", metrics)
+	precision = _metric_value(box_metrics, ("mp", "precision", "p"))
+	recall = _metric_value(box_metrics, ("mr", "recall", "r"))
+	map50 = _metric_value(box_metrics, ("map50", "map_50", "mAP50"))
+	map5095 = _metric_value(box_metrics, ("map", "map5095", "mAP50-95"))
+
+	print("Test-set metrics:")
+	print(f"  Precision:   {precision:.4f}")
+	print(f"  Recall:      {recall:.4f}")
+	print(f"  mAP@50:      {map50:.4f}")
+	print(f"  mAP@50:95:   {map5095:.4f}")
+	print(f"Saved metric summary plot: {plot_path}")
+	print(f"Ultralytics evaluation artifacts: {save_dir}")
+
+
 def parse_args() -> argparse.Namespace:
 	parser = argparse.ArgumentParser(description="YOLOv11 parking spot + car detector")
 	sub = parser.add_subparsers(dest="command", required=True)
@@ -261,6 +334,11 @@ def parse_args() -> argparse.Namespace:
 	p_predict.add_argument("--source", type=str, default="data/test", help="Image/video path, folder, or webcam index")
 	p_predict.add_argument("--conf", type=float, default=0.25)
 	p_predict.set_defaults(func="predict")
+
+	p_eval = sub.add_parser("evaluate", parents=[common], help="Evaluate the model on the test split and save plots")
+	p_eval.add_argument("--weights", type=Path, default=Path("runs/yopo/train/weights/best.pt"))
+	p_eval.add_argument("--source", type=str, default="data/test", help="Accepted for compatibility; the test split is evaluated")
+	p_eval.set_defaults(func="evaluate")
 
 	p_all = sub.add_parser("all", parents=[common], help="Prepare, train, and predict in one command")
 	p_all.add_argument("--model", type=str, default="yolo11n.pt")
@@ -300,6 +378,16 @@ def main() -> None:
 			weights=args.weights,
 			source=args.source,
 			conf=args.conf,
+			device=args.device,
+			project_dir=args.runs_dir,
+		)
+		return
+
+	if args.func == "evaluate":
+		dataset_yaml = prepare_dataset(args.data_root, args.prepared_root)
+		evaluate_model(
+			weights=args.weights,
+			dataset_yaml=dataset_yaml,
 			device=args.device,
 			project_dir=args.runs_dir,
 		)

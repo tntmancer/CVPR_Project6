@@ -40,15 +40,18 @@ def resolve_device(requested_device: str) -> str:
 	"""Resolve device string and fall back to CPU when needed."""
 	dev = requested_device.strip().lower()
 
+	# use GPU if available, otherwise CPU
 	if dev == "auto":
 		if torch.cuda.is_available() and torch.cuda.device_count() > 0:
 			return "0"
 		print("CUDA not available. Falling back to CPU.")
 		return "cpu"
 
+	# explicit CPU request
 	if dev == "cpu":
 		return "cpu"
 
+	# user asked for CUDA explicitly (e.g., '0' or '0,1').
 	if not (torch.cuda.is_available() and torch.cuda.device_count() > 0):
 		print(f"Requested device '{requested_device}' is not available. Falling back to CPU.")
 		return "cpu"
@@ -67,6 +70,7 @@ def _safe_link_or_copy(src: Path, dst: Path) -> None:
 
 
 def _xywh_to_yolo(bbox: Tuple[float, float, float, float], width: int, height: int) -> Tuple[float, float, float, float]:
+	"""Convert (x, y, w, h) in pixel coordinates to YOLO format (cx, cy, nw, nh) normalized to [0, 1]."""
 	x, y, w, h = bbox
 	x = max(0.0, min(x, float(width)))
 	y = max(0.0, min(y, float(height)))
@@ -81,6 +85,7 @@ def _xywh_to_yolo(bbox: Tuple[float, float, float, float], width: int, height: i
 
 
 def _camera_folder_name(camera_code: str) -> str | None:
+	# CNRPark+EXT uses camera codes 01..09 for full-image subset rows.
 	value = camera_code.strip()
 	if value.isdigit():
 		idx = int(value)
@@ -97,6 +102,7 @@ def _decode_datetime(datetime_value: str) -> Tuple[str, str] | None:
 		return None
 
 	date_part, time_part = dt.split("_", 1)
+	# supports both legacy format (20150703_0805) and EXT format (2015-11-12_07.09).
 	if "-" in date_part:
 		date_value = date_part
 	else:
@@ -112,6 +118,7 @@ def _decode_datetime(datetime_value: str) -> Tuple[str, str] | None:
 
 def _split_for_key(key: str, train_ratio: float = 0.7, val_ratio: float = 0.15) -> str:
 	"""Deterministic split assignment from image key."""
+	# Hash-based split keeps assignment stable across reruns and machines.
 	digest = hashlib.md5(key.encode("utf-8")).hexdigest()
 	score = int(digest[:8], 16) / float(0xFFFFFFFF)
 	if score < train_ratio:
@@ -130,6 +137,8 @@ def _load_camera_slot_boxes(
 ) -> Dict[str, Dict[int, Tuple[float, float, float, float]]]:
 	"""Load slot boxes from camera1.csv..camera9.csv and scale to target image size."""
 	slots_by_camera: Dict[str, Dict[int, Tuple[float, float, float, float]]] = {}
+	# camera CSV coordinates are defined on source resolution (default 2592x1944)
+	# full images are 1000x750, so we rescale boxes at load time
 	scale_x = float(target_width) / float(source_width)
 	scale_y = float(target_height) / float(source_height)
 
@@ -164,7 +173,9 @@ def prepare_dataset(
 	target_height: int,
 ) -> Path:
 	"""Build YOLO dataset from CNRPark+EXT CSV + camera slot boxes + full images."""
+	# full-frame images used for training labels
 	full_images_root = data_root / "FULL_IMAGE_1000x750"
+	# occupancy labels (one row per slot per timestamp)
 	ann_csv = data_root / "CNRPark+EXT.csv"
 
 	if not full_images_root.exists():
@@ -194,6 +205,7 @@ def prepare_dataset(
 	with ann_csv.open("r", encoding="utf-8") as f:
 		reader = csv.DictReader(f)
 		for row in reader:
+			# map camera/weather/time metadata in CSV to concrete full image path
 			camera_dir = _camera_folder_name(str(row["camera"]))
 			if camera_dir is None:
 				continue
@@ -216,6 +228,7 @@ def prepare_dataset(
 				skipped_rows += 1
 				continue
 
+			# lookup per-camera slot ROI, then assign class from occupancy
 			bbox = slots_by_camera.get(camera_dir, {}).get(slot_id)
 			if bbox is None:
 				missing_slots += 1
@@ -241,6 +254,7 @@ def prepare_dataset(
 				},
 			)
 
+			# 0=spot (empty), 1=car (occupied)
 			class_id = 1 if occupancy == 1 else 0
 			cx, cy, nw, nh = _xywh_to_yolo(bbox, target_width, target_height)
 			if nw <= 0.0 or nh <= 0.0:
@@ -257,6 +271,7 @@ def prepare_dataset(
 		_safe_link_or_copy(src_image, dst_image)
 
 		label_path = out_root / "labels" / split / f"{Path(out_name).stem}.txt"
+		# de-duplicate label rows in case of duplicate CSV entries
 		lines = list(dict.fromkeys(record["lines"]))
 		with label_path.open("w", encoding="utf-8") as lf:
 			lf.write("\n".join(lines))
@@ -413,47 +428,67 @@ def parse_args() -> argparse.Namespace:
 	parser = argparse.ArgumentParser(description="YOLOv11 CNRParkEXT spot + car detector")
 	sub = parser.add_subparsers(dest="command", required=True)
 
+	# common arguments for all subcommands
 	common = argparse.ArgumentParser(add_help=False)
+	# root folder expected to contain FULL_IMAGE_1000x750, CNRPark+EXT.csv, and camera*.csv files
 	common.add_argument("--data-root", type=Path, default=Path("data/CNRParkEXT"), help="CNRParkEXT dataset root")
+	# output root for prepared YOLO dataset
+	# will contain images/ and labels/ subdirectories
 	common.add_argument(
 		"--prepared-root",
 		type=Path,
 		default=Path("data/CNRParkEXT/yolo_ready"),
 		help="Output folder for converted YOLO dataset",
 	)
+	# output root for training runs, predictions, and evaluation artifacts
 	common.add_argument("--runs-dir", type=Path, default=Path("runs/cnrpark"), help="Output folder for train/predict runs")
+	# device can be 'auto' to select GPU if available, 'cpu' to force CPU, or a specific CUDA device id like '0'
+	# falls back to CPU if requested GPU is not available
 	common.add_argument("--device", type=str, default="auto", help="'auto', 'cpu', or CUDA device id like '0'")
+	# annotation CSV coordinates are in the original camera resolution
 	common.add_argument("--source-width", type=int, default=2592, help="Original annotation coordinate width")
 	common.add_argument("--source-height", type=int, default=1944, help="Original annotation coordinate height")
+	# full image dimensions where labels are projected
 	common.add_argument("--target-width", type=int, default=1000, help="Full image width in pixels")
 	common.add_argument("--target-height", type=int, default=750, help="Full image height in pixels")
 
+	# subcommands
+	# convert CNRPark+EXT CSV labels into YOLO format
 	p_prepare = sub.add_parser("prepare", parents=[common], help="Convert CNRParkEXT CSV to YOLO dataset")
 	p_prepare.set_defaults(func="prepare")
 
+	# train YOLOv11 model
 	p_train = sub.add_parser("train", parents=[common], help="Prepare dataset and train YOLOv11")
+	# model checkpoint can be a pretrained YOLOv11 variant like 'yolo11n.pt' or a custom checkpoint path
 	p_train.add_argument("--model", type=str, default="yolo11n.pt", help="YOLOv11 checkpoint")
+	# training hyperparameters
 	p_train.add_argument("--epochs", type=int, default=50)
 	p_train.add_argument("--imgsz", type=int, default=640)
 	p_train.add_argument("--batch", type=int, default=16)
 	p_train.set_defaults(func="train")
 
+	# run prediction with bounding boxes
 	p_predict = sub.add_parser("predict", parents=[common], help="Run prediction with bounding boxes")
+	# source for weights defaults to the best.pt from training, but can be overridden to use any checkpoint
 	p_predict.add_argument("--weights", type=Path, default=Path("runs/cnrpark/train/weights/best.pt"))
+	# source can be an image, video, folder of images/videos, or webcam index (e.g., '0')
 	p_predict.add_argument(
 		"--source",
 		type=str,
 		default="data/CNRParkEXT/FULL_IMAGE_1000x750",
 		help="Image/video path, folder, or webcam index",
 	)
+	# confidence threshold for predictions
 	p_predict.add_argument("--conf", type=float, default=0.25)
 	p_predict.set_defaults(func="predict")
 
+	# evaluate model on test split and save metrics/plots
 	p_eval = sub.add_parser("evaluate", parents=[common], help="Evaluate the model on the test split and save plots")
 	p_eval.add_argument("--weights", type=Path, default=Path("runs/cnrpark/train/weights/best.pt"))
 	p_eval.add_argument("--source", type=str, default="data/CNRParkEXT/FULL_IMAGE_1000x750", help="Accepted for compatibility")
 	p_eval.set_defaults(func="evaluate")
 
+	# run the entire pipeline: prepare, train, and predict
 	p_all = sub.add_parser("all", parents=[common], help="Prepare, train, and predict in one command")
 	p_all.add_argument("--model", type=str, default="yolo11n.pt")
 	p_all.add_argument("--epochs", type=int, default=50)

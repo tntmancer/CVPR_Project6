@@ -16,3 +16,4 @@ pyyaml
 # Utilities
 tqdm
 scipy
+requests

@@ -2,7 +2,7 @@
 """YOLOv11 parking detector.
 
 This script hasmultiple modes:
-1) Convert COCO annotations in data/{train,valid,test} to YOLO format.
+1) Convert COCO annotations in data/pklot/{train,valid,test} to YOLO format.
 2) Train a YOLOv11 model to detect two classes: spot and car.
 3) Run prediction and saves images/videos with bounding boxes.
 
@@ -363,7 +363,7 @@ def parse_args() -> argparse.Namespace:
 	common.add_argument(
 		"--prepared-root",
 		type=Path,
-		default=Path("data/yolo_ready"),
+		default=Path("data/pklot/yolo_ready"),
 		help="Output folder for converted YOLO dataset",
 	)
 	# output root for training runs, predictions, and evaluation artifacts
@@ -392,7 +392,7 @@ def parse_args() -> argparse.Namespace:
 	# source for weights defaults to the best.pt from training, but can be overridden to use any checkpoint
 	p_predict.add_argument("--weights", type=Path, default=Path("runs/detect/runs/yopo/train/weights/best.pt"))
 	# source can be an image, video, folder of images/videos, or webcam index (e.g., '0')
-	p_predict.add_argument("--source", type=str, default="data/test", help="Image/video path, folder, or webcam index")
+	p_predict.add_argument("--source", type=str, default="data/pklot/test", help="Image/video path, folder, or webcam index")
 	# confidence threshold for predictions
 	p_predict.add_argument("--conf", type=float, default=0.25)
 	p_predict.set_defaults(func="predict")
@@ -400,7 +400,7 @@ def parse_args() -> argparse.Namespace:
 	# evaluate model on test split and save metrics/plots
 	p_eval = sub.add_parser("evaluate", parents=[common], help="Evaluate the model on the test split and save plots")
 	p_eval.add_argument("--weights", type=Path, default=Path("runs/detect/runs/yopo/train/weights/best.pt"))
-	p_eval.add_argument("--source", type=str, default="data/test", help="Accepted for compatibility; the test split is evaluated")
+	p_eval.add_argument("--source", type=str, default="data/pklot/test", help="Accepted for compatibility; the test split is evaluated")
 	p_eval.set_defaults(func="evaluate")
 
 	# run the entire pipeline: prepare, train, and predict

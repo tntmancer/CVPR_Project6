@@ -3,7 +3,5 @@ pycache/
 *.pyc
 *.jpg
 *.jpeg
-data/test
-data/train
-data/valid
-data/yolo_ready
+data/*
+.env

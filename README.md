@@ -46,6 +46,7 @@ Each new terminal session:
 3. Run the Python scripts
 
 # Getting the Data
+## PKLot Data
 The PKLot database is licensed under a Creative Commons Attribution 4.0 License and may be used provided you acknowledge the source by citing the [PKLot paper](http://www.inf.ufpr.br/lesoliveira/download/ESWA2015.pdf) in publications about your research:
 
 ```
@@ -53,6 +54,11 @@ Almeida, P., Oliveira, L. S., Silva Jr, E., Britto Jr, A., Koerich, A., PKLot â€
 ```
 
 The dataset was downloaded from https://public.roboflow.ai/object-detection/pklot, then moved to the `data` folder of the WSL environment and unzipped.
+
+## CNRPark+EXT Data
+[CNRPark+EXT](http://cnrpark.it/) has the data for this training run. [These are the labels](https://github.com/fabiocarrara/deep-parking/releases/download/archive/CNRPark+EXT.csv) and [these are the full images](https://github.com/fabiocarrara/deep-parking/releases/download/archive/CNR-EXT_FULL_IMAGE_1000x750.tar).
+
+The CNRPark-EXT dataset is licensed under a [Open Data Commons Open Database License (ODbL) v1.0.](https://opendatacommons.org/licenses/odbl/1-0/)
 
 # Running the YOLO Model
 Run `python youOnlyParkOnce.py prepare` to parse the dataset into a YOLO11-compatible format.

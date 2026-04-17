@@ -60,6 +60,8 @@ The dataset was downloaded from https://public.roboflow.ai/object-detection/pklo
 
 The CNRPark-EXT dataset is licensed under a [Open Data Commons Open Database License (ODbL) v1.0.](https://opendatacommons.org/licenses/odbl/1-0/)
 
+The data from this set was moved to `data/CNRParkEXT` along with the labels.
+
 # Running the YOLO Model
 Run `python youOnlyParkOnce.py prepare` to parse the dataset into a YOLO11-compatible format.
 

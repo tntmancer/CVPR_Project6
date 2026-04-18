@@ -338,18 +338,36 @@ def predict(
 	conf: float,
 	device: str,
 	project_dir: Path,
+	classes: List[int] | None = None,
 ) -> None:
 	model = YOLO(str(weights))
 	model.predict(
 		source=source,
 		conf=conf,
 		device=device,
+		classes=classes,
 		save=True,
 		project=str(project_dir),
 		name="predict",
 		exist_ok=True,
 	)
 	print(f"Predictions saved under: {project_dir / 'predict'}")
+
+
+def _parse_classes_arg(value: str | None) -> List[int] | None:
+	"""Parse a comma-separated class list like '0,1' into [0, 1]."""
+	if value is None:
+		return None
+	text = value.strip()
+	if not text:
+		return None
+	classes: List[int] = []
+	for part in text.split(","):
+		item = part.strip()
+		if not item:
+			continue
+		classes.append(int(item))
+	return classes if classes else None
 
 
 def _metric_value(metrics: object, names: Tuple[str, ...], default: float = 0.0) -> float:
@@ -480,6 +498,8 @@ def parse_args() -> argparse.Namespace:
 	)
 	# confidence threshold for predictions
 	p_predict.add_argument("--conf", type=float, default=0.25)
+	# optional class filter, e.g. '1' for car only, or '0,1' for both
+	p_predict.add_argument("--classes", type=str, default=None, help="Optional comma-separated class ids to keep")
 	p_predict.set_defaults(func="predict")
 
 	# evaluate model on test split and save metrics/plots
@@ -496,6 +516,7 @@ def parse_args() -> argparse.Namespace:
 	p_all.add_argument("--batch", type=int, default=16)
 	p_all.add_argument("--source", type=str, default="data/CNRParkEXT/FULL_IMAGE_1000x750")
 	p_all.add_argument("--conf", type=float, default=0.25)
+	p_all.add_argument("--classes", type=str, default=None, help="Optional comma-separated class ids to keep")
 	p_all.set_defaults(func="all")
 
 	return parser.parse_args()
@@ -537,12 +558,14 @@ def main() -> None:
 		return
 
 	if args.func == "predict":
+		classes = _parse_classes_arg(args.classes)
 		predict(
 			weights=args.weights,
 			source=args.source,
 			conf=args.conf,
 			device=args.device,
 			project_dir=args.runs_dir,
+			classes=classes,
 		)
 		return
 
@@ -564,6 +587,7 @@ def main() -> None:
 		return
 
 	if args.func == "all":
+		classes = _parse_classes_arg(args.classes)
 		dataset_yaml = prepare_dataset(
 			data_root=args.data_root,
 			out_root=args.prepared_root,
@@ -587,6 +611,7 @@ def main() -> None:
 			conf=args.conf,
 			device=args.device,
 			project_dir=args.runs_dir,
+			classes=classes,
 		)
 		return
 

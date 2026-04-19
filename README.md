@@ -67,13 +67,13 @@ Run `python youOnlyParkOncePKLot.py prepare` to parse the dataset into a YOLO11-
 
 Run `python youOnlyParkOncePKLot.py train --model yolo11n.pt --epochs <num_epochs>` to train the YOLO model on the dataset. You can pass `--device auto` to use the GPU if available, `--device cpu` to use the CPU, or `--device <number>` to specify a specific device.
 
-Run `python youOnlyParkOncePKLot.py predict --weights runs/detect/runs/cnrpark/train/weights/best.pt --source data/test` to predict using the trained weights.
+Run `python youOnlyParkOncePKLot.py predict --weights runs/detect/runs/pklot/train/weights/best.pt --source data/pklot/test` to predict using the trained weights. `--conf` can be passed for a specific confidence level in predictions.
 
 # Running the YOLO Model for CNRPark+EXT
 Run `python youOnlyParkOnceCNRPark.py prepare` to parse the dataset into a YOLO11-compatible format.
 
 Run `python youOnlyParkOnceCNRPark.py train --model yolo11n.pt --epochs <num_epochs>` to train the YOLO model on the dataset. You can pass `--device auto` to use the GPU if available, `--device cpu` to use the CPU, or `--device <number>` to specify a specific device.
 
-Run `python youOnlyParkOnceCNRPark.py predict --weights runs/detect/runs/cnrpark/train/weights/best.pt --source data/CNRParkEXT/FULL_IMAGE_1000x750` to predict using the trained weights.
+Run `python youOnlyParkOnceCNRPark.py predict --weights runs/detect/runs/cnrpark/train/weights/best.pt --source data/CNRParkEXT/FULL_IMAGE_1000x750` to predict using the trained weights. `--conf` can be passed for a specific confidence level in predictions.
 
 Run `python youOnlyParkOnceCNRPark.py evaluate --weights runs/detect/runs/cnrpark/train/weights/best.pt` to evaluate the model on the test split and save metrics/plots.

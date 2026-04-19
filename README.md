@@ -3,23 +3,23 @@
 
 From the project folder:
 
-`python3 -m venv .venv`
+`python3 -m venv parking_env`
 
 ## 2) Activate the virtual environment
 
 Linux or macOS:
 
-`source .venv/bin/activate`
+`source parking_env/bin/activate`
 
 Windows PowerShell:
 
-`.venv\Scripts\Activate.ps1`
+`parking_env\Scripts\Activate.ps1`
 
 Windows Command Prompt:
 
-`.venv\Scripts\activate.bat`
+`parking_env\Scripts\activate.bat`
 
-When activated, the shell should be preceded with `(.venv)`
+When activated, the shell should be preceded with `(parking_env)`
 
 ## 3) Upgrade pip
 
@@ -31,7 +31,7 @@ When activated, the shell should be preceded with `(.venv)`
 
 ## 5) Verify installation
 
-`python -c "import torch, torchvision, matplotlib, cv2; from matplotlib import pyplot as plt; print('All imports OK')"`
+`python -c "import torch, torchvision, ultralytics, cv2, numpy, pandas, yaml, tqdm, scipy; from PIL import Image; import matplotlib; from matplotlib import pyplot as plt; print('All imports OK')"`
 
 ## 6) Deactivate when done
 
@@ -42,7 +42,7 @@ When activated, the shell should be preceded with `(.venv)`
 Each new terminal session:
 
 1. Open terminal in this project folder
-2. Run: `source .venv/bin/activate`
+2. Run: `source parking_env/bin/activate`
 3. Run the Python scripts
 
 # Getting the Data

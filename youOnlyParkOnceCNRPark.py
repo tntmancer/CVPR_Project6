@@ -69,6 +69,31 @@ def _safe_link_or_copy(src: Path, dst: Path) -> None:
 		shutil.copy2(src, dst)
 
 
+def _collect_media_paths(source: str | Path) -> List[str]:
+	"""Collect image/video paths recursively when a directory contains nested subfolders."""
+	path = Path(source)
+	media_extensions = {
+		".png",
+		".jpg",
+		".jpeg",
+		".bmp",
+		".webp",
+	}
+
+	if not path.exists():
+		return []
+
+	if path.is_file():
+		return [str(path)]
+
+	files = sorted(
+		p
+		for p in path.rglob("*")
+		if p.is_file() and p.suffix.lower() in media_extensions
+	)
+	return [str(p) for p in files]
+
+
 def _xywh_to_yolo(bbox: Tuple[float, float, float, float], width: int, height: int) -> Tuple[float, float, float, float]:
 	"""Convert (x, y, w, h) in pixel coordinates to YOLO format (cx, cy, nw, nh) normalized to [0, 1]."""
 	x, y, w, h = bbox
@@ -340,8 +365,11 @@ def predict(
 	project_dir: Path,
 ) -> None:
 	model = YOLO(str(weights))
+	source_paths = _collect_media_paths(source)
+	if not source_paths:
+		raise FileNotFoundError(f"No images or videos found in {source}")
 	model.predict(
-		source=source,
+		source=source_paths,
 		conf=conf,
 		device=device,
 		save=True,

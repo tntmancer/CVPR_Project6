@@ -17,8 +17,9 @@ import argparse
 import json
 import os
 import shutil
+from itertools import islice
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Dict, Iterator, List, Tuple
 
 import matplotlib.pyplot as plt
 import torch
@@ -76,6 +77,49 @@ def _safe_link_or_copy(src: Path, dst: Path) -> None:
 		os.link(src, dst)
 	except OSError:
 		shutil.copy2(src, dst)
+
+
+def _is_webcam_source(source: str) -> bool:
+	"""True when source is a webcam index such as '0'."""
+	return source.strip().isdigit()
+
+
+def _iter_media_paths(source: str | Path) -> Iterator[str]:
+	"""Yield image/video paths recursively from a file or directory source."""
+	path = Path(source)
+	media_extensions = {
+		".png",
+		".jpg",
+		".jpeg",
+		".bmp",
+		".webp",
+		".mp4",
+		".avi",
+		".mov",
+		".mkv",
+		".wmv",
+		".m4v",
+	}
+
+	if not path.exists():
+		return
+
+	if path.is_file():
+		yield str(path)
+		return
+
+	for p in sorted(path.rglob("*")):
+		if p.is_file() and p.suffix.lower() in media_extensions:
+			yield str(p)
+
+
+def _iter_chunks(items: Iterator[str], chunk_size: int) -> Iterator[List[str]]:
+	"""Yield fixed-size lists from an iterator without loading everything into memory."""
+	while True:
+		chunk = list(islice(items, chunk_size))
+		if not chunk:
+			break
+		yield chunk
 
 
 def _xywh_to_yolo(bbox: List[float], width: int, height: int) -> Tuple[float, float, float, float]:
@@ -245,20 +289,44 @@ def predict(
 	conf: float,
 	device: str,
 	project_dir: Path,
+	batch_files: int,
 ) -> None:
 	model = YOLO(str(weights))
-	model.predict(
-		source=source,
-		conf=conf,
-		device=device,
-		save=True,
-		project=str(project_dir),
-		name="predict",
-		exist_ok=True,
-	)
-	"""
-	The predict method saves images/videos with bounding boxes in the run directory under predict relative to the save_dir
-	"""
+
+	if _is_webcam_source(source):
+		model.predict(
+			source=source,
+			conf=conf,
+			device=device,
+			save=True,
+			project=str(project_dir),
+			name="predict",
+			exist_ok=True,
+		)
+		print(f"Predictions saved under: {project_dir / 'predict'}")
+		return
+
+	if batch_files < 1:
+		raise ValueError("batch_files must be >= 1")
+
+	media_iter = _iter_media_paths(source)
+	processed = 0
+	for idx, chunk in enumerate(_iter_chunks(media_iter, batch_files), start=1):
+		model.predict(
+			source=chunk,
+			conf=conf,
+			device=device,
+			save=True,
+			project=str(project_dir),
+			name="predict",
+			exist_ok=True,
+		)
+		processed += len(chunk)
+		print(f"Processed batch {idx}: +{len(chunk)} files (total={processed})")
+
+	if processed == 0:
+		raise FileNotFoundError(f"No images or videos found in {source}")
+
 	print(f"Predictions saved under: {project_dir / 'predict'}")
 
 
@@ -395,6 +463,12 @@ def parse_args() -> argparse.Namespace:
 	p_predict.add_argument("--source", type=str, default="data/pklot/test", help="Image/video path, folder, or webcam index")
 	# confidence threshold for predictions
 	p_predict.add_argument("--conf", type=float, default=0.25)
+	p_predict.add_argument(
+		"--batch-files",
+		type=int,
+		default=200,
+		help="Number of media files to send to YOLO per prediction call to reduce peak RAM",
+	)
 	p_predict.set_defaults(func="predict")
 
 	# evaluate model on test split and save metrics/plots
@@ -411,6 +485,7 @@ def parse_args() -> argparse.Namespace:
 	p_all.add_argument("--batch", type=int, default=16)
 	p_all.add_argument("--source", type=str, default="data/test")
 	p_all.add_argument("--conf", type=float, default=0.25)
+	p_all.add_argument("--batch-files", type=int, default=200)
 	p_all.set_defaults(func="all")
 
 	return parser.parse_args()
@@ -449,6 +524,7 @@ def main() -> None:
 			conf=args.conf,
 			device=args.device,
 			project_dir=args.runs_dir,
+			batch_files=args.batch_files,
 		)
 		return
 
@@ -479,6 +555,7 @@ def main() -> None:
 			conf=args.conf,
 			device=args.device,
 			project_dir=args.runs_dir,
+			batch_files=args.batch_files,
 		)
 		return
 

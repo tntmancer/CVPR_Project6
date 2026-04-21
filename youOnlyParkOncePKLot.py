@@ -425,7 +425,7 @@ def parse_args() -> argparse.Namespace:
 	# common arguments for all subcommands
 	common = argparse.ArgumentParser(add_help=False)
 	# dataset root is expected to have train/valid/test subdirectories with COCO annotations and images
-	common.add_argument("--data-root", type=Path, default=Path("data"), help="Dataset root with train/valid/test")
+	common.add_argument("--data-root", type=Path, default=Path("data/pklot"), help="Dataset root with train/valid/test")
 	# output root for prepared YOLO dataset
 	# will contain images/ and labels/ subdirectories
 	common.add_argument(

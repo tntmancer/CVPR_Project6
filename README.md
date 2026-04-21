@@ -62,6 +62,57 @@ The CNRPark-EXT dataset is licensed under a [Open Data Commons Open Database Lic
 
 The data from this set was moved to `data/CNRParkEXT` along with the labels.
 
+## Merging the Data
+From the root directory of the project, run `mkdir -p data/combined/images/{train,valid,test} data/combined/labels/{train,valid,test}` to create train/test/validate directories for the merged PKLot and CNRPark dataset.
+
+Then copy images and labels from both prepared datasets into the combined directory with dataset-specific filename prefixes to avoid collisions:
+
+```bash
+shopt -s nullglob
+
+for split in train valid test; do
+	for ds in CNRParkEXT pklot; do
+		src="data/$ds/yolo_ready"
+		prefix="$(echo "$ds" | tr '[:upper:]' '[:lower:]')_"
+
+		for img in "$src/images/$split"/*; do
+			[ -f "$img" ] || continue
+			base="$(basename "$img")"
+			stem="${base%.*}"
+
+			cp --update=none "$img" "data/combined/images/$split/${prefix}${base}"
+
+			lbl="$src/labels/$split/${stem}.txt"
+			if [ -f "$lbl" ]; then
+				cp --update=none "$lbl" "data/combined/labels/$split/${prefix}${stem}.txt"
+			fi
+		done
+	done
+done
+```
+
+Create a dataset YAML for the merged directory:
+
+```bash
+cat > /root/project6/data/combined/parking_dataset.yaml << 'EOF'
+path: /root/project6/data/combined
+train: images/train
+val: images/valid
+test: images/test
+names:
+  0: spot
+  1: car
+EOF
+```
+
+To verify the merge counts, run:
+
+```bash
+for split in train valid test; do
+	echo "split=$split images=$(find /root/project6/data/combined/images/$split -maxdepth 1 -type f | wc -l) labels=$(find /root/project6/data/combined/labels/$split -maxdepth 1 -type f | wc -l)"
+done
+```
+
 # Running the YOLO Model for PKLot
 Run `python youOnlyParkOncePKLot.py prepare` to parse the dataset into a YOLO11-compatible format.
 
@@ -77,3 +128,48 @@ Run `python youOnlyParkOnceCNRPark.py train --model yolo11n.pt --epochs <num_epo
 Run `python youOnlyParkOnceCNRPark.py predict --weights runs/detect/runs/cnrpark/train/weights/best.pt --source data/CNRParkEXT/FULL_IMAGE_1000x750` to predict using the trained weights. `--conf` can be passed for a specific confidence level in predictions.
 
 Run `python youOnlyParkOnceCNRPark.py evaluate --weights runs/detect/runs/cnrpark/train/weights/best.pt` to evaluate the model on the test split and save metrics/plots.
+
+# Running the YOLO Model on Merged Data (PKLot + CNRPark+EXT)
+Train directly with Ultralytics on the merged YAML:
+
+```bash
+yolo detect train \
+	model=/root/project6/yolo11n.pt \
+	data=/root/project6/data/combined/parking_dataset.yaml \
+	epochs=20 \
+	imgsz=640 \
+	batch=16 \
+	device=cpu \
+	workers=0 \
+	project=/root/project6/runs/detect/runs \
+	name=combined_cnr_pklot \
+	exist_ok=True
+```
+
+Evaluate the merged model on each original dataset:
+
+```bash
+yolo detect val \
+	model=/root/project6/runs/detect/runs/combined_cnr_pklot/weights/best.pt \
+	data=/root/project6/data/pklot/yolo_ready/parking_dataset.yaml \
+	split=test \
+	project=/root/project6/runs/cross_eval \
+	name=combined_on_pklot \
+	device=cpu \
+    workers=0 \
+	batch=8
+```
+
+```bash
+yolo detect val \
+	model=/root/project6/runs/detect/runs/combined_cnr_pklot/weights/best.pt \
+	data=/root/project6/data/CNRParkEXT/yolo_ready/parking_dataset.yaml \
+	split=test \
+	project=/root/project6/runs/cross_eval \
+	name=combined_on_cnr \
+	device=cpu \
+    workers=0 \
+	batch=8
+```
+
+Note: using `device=cpu` and `workers=0` is safer for WSL stability. If you have setup GPU in your environment, instead use `device=0`.

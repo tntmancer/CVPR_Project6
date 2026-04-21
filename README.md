@@ -172,4 +172,17 @@ yolo detect val \
 	batch=8
 ```
 
+Evaluate the model on the test split of the combined dataset:
+```bash
+yolo detect val \
+	model=/root/project6/runs/detect/runs/combined_cnr_pklot/weights/best.pt \
+	data=/root/project6/data/combined/parking_dataset.yaml \
+	split=test \
+	project=/root/project6/runs/cross_eval \
+	name=combined_on_combined \
+	device=cpu \
+	workers=0 \
+	batch=8
+```
+
 Note: using `device=cpu` and `workers=0` is safer for WSL stability. If you have setup GPU in your environment, instead use `device=0`.

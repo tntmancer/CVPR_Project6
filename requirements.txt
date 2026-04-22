@@ -1,0 +1,18 @@
+# Core Deep Learning Framework
+ultralytics>=8.3.0
+torch
+torchvision
+
+# Image Processing and Computer Vision
+opencv-python
+numpy
+Pillow
+
+# Data Management and Visualization
+matplotlib
+pandas
+pyyaml
+
+# Utilities
+tqdm
+scipy

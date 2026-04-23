@@ -1,3 +1,24 @@
+# Project Details
+Sreenath Prasadh and Timothy Bennett
+CS 5330 — Pattern Recognition and Computer Vision
+Northeastern University, Boston, MA
+Professor Bruce Maxwell
+
+## Description
+We wil compare the efficacy of a geometric approach similar to Project 3 of the course and a custom YOLO11 model when applied to the problem of parking lot occupancy. We have identified two datasets: CNRPark-EXT and PKLot that provide thousands of annotated images of parking lots in various conditions which we will use for training and testing. There are a number of papers in the field that evaluate different approaches that we will build off of and compare our results against.
+
+## Presentation Links
+We received permission from Proffessor Bruce Maxwell to record two presentations.
+
+[Tim's Prsentation](https://drive.google.com/file/d/1Yh5IRT9u_D8vK726GPDkqXTWEYUMDMez/view?usp=sharing)
+
+[Sreenath's Presentation]()
+
+## Code Output
+[YOLO Running](https://drive.google.com/file/d/18VzpbxW-EupwbR51uIrTqaMmx0MUPAsg/view?usp=sharing)
+
+[GIF of YOLO output](https://drive.google.com/file/d/1uJuyJFYPSuUVrjXTSqqDPfFmlTSVSSD4/view?usp=sharing)
+
 # Creating a Virtual Environment
 ## 1) Create the virtual environment
 

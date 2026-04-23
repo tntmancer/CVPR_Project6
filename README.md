@@ -8,7 +8,7 @@ Professor Bruce Maxwell
 We wil compare the efficacy of a geometric approach similar to Project 3 of the course and a custom YOLO11 model when applied to the problem of parking lot occupancy. We have identified two datasets: CNRPark-EXT and PKLot that provide thousands of annotated images of parking lots in various conditions which we will use for training and testing. There are a number of papers in the field that evaluate different approaches that we will build off of and compare our results against.
 
 ## Presentation Links
-We received permission from Proffessor Bruce Maxwell to record two presentations.
+We received permission from Proffessor Bruce Maxwell to record two seperate presentations.
 
 [Tim's Prsentation](https://drive.google.com/file/d/1Yh5IRT9u_D8vK726GPDkqXTWEYUMDMez/view?usp=sharing)
 
